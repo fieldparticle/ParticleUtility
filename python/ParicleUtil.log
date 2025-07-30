@@ -1,0 +1,16 @@
+yy_mm_dd:hr:min,errText,eString
+2025_7_30:16:2 <class 'LogUtility.LogUtility'> Opened Log File for ParicleUtil.log
+2025_7_30:16:2 <class 'ConfigUtility.ConfigUtility'> FPIBG into Create.
+2025_7_30:16:2 <class 'ConfigUtility.ConfigUtility'> FPIBG into Open config file.
+2025_7_30:16:2 <class 'ConfigUtility.ConfigUtility'> Successfully Loaded Config File.
+2025_7_30:16:2 <class 'UtilityMainWin.UtilityMainWin'> Logging system initialized
+2025_7_30:16:2 <class 'TabFormGenData.TabGenData'> TabFormLatex finished init.
+2025_7_30:16:2 <class 'TabFormGenData.TabGenData'> TabFormLatex finished Create.
+2025_7_30:16:2 <class 'ParticleBase.ParticleBase'> Linked ot output
+2025_7_30:16:2 <class 'TabFormLatex.TabFormLatex'> TabFormLatex finished init.
+2025_7_30:16:2 <class 'TabFormLatex.TabFormLatex'> TabFormLatex started Create.
+2025_7_30:16:2 <class 'TabFormLatex.TabFormLatex'> 'TabFormLatex' object has no attribute 'browseNewItem'
+2025_7_30:16:2 <class 'UtilityMainWin.UtilityMainWin'> FPIBGLatexWin.Created
+2025_7_30:16:3 <class 'ConfigUtility.ConfigUtility'> FPIBG into Create.
+2025_7_30:16:3 <class 'ConfigUtility.ConfigUtility'> FPIBG into Open config file.
+2025_7_30:16:3 <class 'ConfigUtility.ConfigUtility'> Successfully Loaded Config File.
