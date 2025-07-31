@@ -15,42 +15,33 @@ from tkinter import messagebox as mb
 import glob
 import traceback
 import time
-from PlotParticle import *
+from PlotParticles import *
+import struct
+import ctypes
+
+class pdata(ctypes.Structure):
+    _fields_ = [("pnum", ctypes.c_double),
+                ("rx",  ctypes.c_double),
+                ("ry",  ctypes.c_double),
+                ("rz",  ctypes.c_double),
+                ("radius",  ctypes.c_double),
+                ("vx",  ctypes.c_double),
+                ("vy",  ctypes.c_double),
+                ("vz",  ctypes.c_double),
+                ("ptype",  ctypes.c_double),
+                ("seq",  ctypes.c_double),
+                ("acc_r",  ctypes.c_double),
+                ("Acc_a",  ctypes.c_double),
+                ("molar_mass",  ctypes.c_double),
+                ("temp_vel",  ctypes.c_double)]          
 
 class WorkerSignals(QObject):
-    """Signals from a running worker thread.
-
-    finished
-        No data
-
-    error
-        tuple (exctype, value, traceback.format_exc())
-
-    result
-        object data returned from processing, anything
-
-    progress
-        float indicating % progress
-    """
-
     finished = pyqtSignal()
     error = pyqtSignal(tuple)
     result = pyqtSignal(object)
     progress = pyqtSignal(float)
 
 class Worker(QRunnable):
-    """Worker thread.
-
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
-
-    :param callback: The function callback to run on this worker thread.
-                     Supplied args and
-                     kwargs will be passed through to the runner.
-    :type callback: function
-    :param args: Arguments to pass to the callback function
-    :param kwargs: Keywords to pass to the callback function
-    """
-
     def __init__(self, fn, *args, **kwargs):
         super().__init__()
         self.fn = fn
@@ -86,42 +77,6 @@ class TabGenData(QTabWidget):
     thread = None
     current_test_file = 0
     
-    
-    def execute_this_fn(self, progress_callback):
-        for n in range(0, 5):
-            time.sleep(1)
-            progress_callback.emit(n * 100 / 4)
-        return "Done."
-
-    def print_output(self, s):
-        print(s)
-
-    def __init__(self, *args, **kwargs ):
-        super().__init__(*args, **kwargs )
-        self.threadpool = QThreadPool()
-        thread_count = self.threadpool.maxThreadCount()
-        print(f"Multithreading with maximum {thread_count} threads")
-        
-    
-    def setSize(self,control,H,W):
-        control.setMinimumHeight(H)
-        control.setMinimumWidth(W)
-        control.setMaximumHeight(H)
-        control.setMaximumWidth(W)
-
-    def update_cfg_section(self):
-        self.ltxObj.clearConfigGrp()
-        self.ltxObj.OpenLatxCFG()
-        files_names = self.itemcfg.config.data_dir + "/*.bin"
-        files = glob.glob(files_names)
-        for ii in files:
-            self.ListObj.addItem(ii)
-        self.SaveButton.setEnabled(True)
-        self.GenDataButton.setEnabled(True)
-    
-
-    def SaveConfigurationFile(self):
-        self.ltxObj.updateCfgData()
         
     ##############################################################################
     # Configuration file stuff
@@ -155,7 +110,10 @@ class TabGenData(QTabWidget):
 
             # Enable to generate data
             self.GenDataButton.setEnabled(True)
-
+    
+    #******************************************************************
+    # Browse to an existing cfg file
+    #
     def browseFolder(self):
         """ Opens a dialog window for the user to select a folder in the file system. """
         self.startDir = self.cfg.gen_start_dir
@@ -165,8 +123,9 @@ class TabGenData(QTabWidget):
         # If a valid configuation file name is returned
         if folder[0]:
             self.load_item_cfg(folder[0])
-                
+    #******************************************************************
     # Dynamically load the class
+    #           
     def load_class(self,class_name):
         module_name, class_name = class_name.rsplit('.', 1)
         module = importlib.import_module(module_name)
@@ -211,18 +170,26 @@ class TabGenData(QTabWidget):
         for ii in files:
                 self.ListObj.addItem(ii)
 
+    def print_output(self, s):
+        print(s)
     #******************************************************************
     # Set up and start the thread
     #
     def start_thread(self):
-        self.terminal.clear()
-        worker = Worker(self.do_one_file )  # Any other args, kwargs are passed to the run function
-        worker.signals.result.connect(self.print_output)
-        worker.signals.finished.connect(self.thread_complete)
-        worker.signals.progress.connect(self.update_terminal)
-        # Execute
-        self.threadpool.start(worker)
-        
+        try :
+            self.terminal.clear()
+            worker = Worker(self.do_one_file )  # Any other args, kwargs are passed to the run function
+            worker.signals.result.connect(self.print_output)
+            worker.signals.finished.connect(self.thread_complete)
+            worker.signals.progress.connect(self.update_terminal)
+            # Execute
+            self.threadpool.start(worker)
+        except BaseException as e:
+            print(f"Start Thread Failed:{e}")
+   
+    #******************************************************************
+    # Thread is complete start a new thread for the next file if there is any
+    #
     def thread_complete(self):
         self.current_test_file+=1
         if (self.current_test_file >= len(self.gen_class.select_list)) :
@@ -232,9 +199,9 @@ class TabGenData(QTabWidget):
         print(f"Next Thread index:{self.current_test_file}")
         self.start_thread()
         
-   
-   
-
+    #******************************************************************
+    # Thread that does one file set
+    #
     def do_one_file(self,progress_callback):
         
         try:
@@ -253,11 +220,16 @@ class TabGenData(QTabWidget):
             
         return ""
 
+    #******************************************************************
+    # Update the terminal window
+    #
     def update_terminal(self,n):
         print(f"{n:.3f}% done")
         self.terminal.append(f"{n:.3f}% done")
 
-
+    #******************************************************************
+    # Clear the files in the data directory
+    #
     def clear_files(self):
         clr_path = self.itemcfg.data_dir + "/*.csv"
         files = glob.glob(clr_path)
@@ -273,9 +245,41 @@ class TabGenData(QTabWidget):
         files = glob.glob(clr_path)
         for f in files:
             os.remove(f)
+    #******************************************************************
+    # Read the data from a file and return os as 
+    #
+    def read_particle_data(self,file_name):
+        if(self.ListObj.currentRow() < 0):
+            mb.messagebox('No data file has been selected')
+            
 
+            
+        struct_fmt = 'dddddddddddddd'
+        struct_len = struct.calcsize(struct_fmt)
+        #print(struct_len)
+        struct_unpack = struct.Struct(struct_fmt).unpack_from
+        count = 0
+        results = []
+        
+        with open(file_name, "rb") as f:
+            
+            while True:
+                record = pdata()
+                ret = f.readinto(record)
+                if ret == 0:
+                    break
+                results.append(record)
+        p_lst = []
+        return results
+    
 
-
+    ##############################################################################
+    # Plot stuff
+    # 
+    ##############################################################################
+    #******************************************************************
+    # Thread is complete start a new thread for the next file if there is any
+    #
     def plot_particles(self):
         
         selected_item = self.ListObj.selectedItems()
@@ -290,7 +294,30 @@ class TabGenData(QTabWidget):
         #else:
          #   print("No Database item is selected.")
        
-
+    ##############################################################################
+    # Setup stuff 
+    # 
+    ##############################################################################
+    #******************************************************************
+    # Init
+    #
+    def __init__(self, *args, **kwargs ):
+        super().__init__(*args, **kwargs )
+        self.threadpool = QThreadPool()
+        thread_count = self.threadpool.maxThreadCount()
+        #print(f"Multithreading with maximum {thread_count} threads")
+        
+    #******************************************************************
+    # Set the size of a widget
+    #
+    def setSize(self,control,H,W):
+        control.setMinimumHeight(H)
+        control.setMinimumWidth(W)
+        control.setMaximumHeight(H)
+        control.setMaximumWidth(W)
+    #******************************************************************
+    # Creatwe the tab
+    #
     def Create(self,ParticleBase):
         self.bobj = ParticleBase
         self.cfg = self.bobj.cfg.config
@@ -327,7 +354,7 @@ class TabGenData(QTabWidget):
             self.SaveButton = QPushButton("Save")
             self.setSize(self.SaveButton,30,100)
             self.SaveButton.setStyleSheet("background-color:  #dddddd")
-            self.SaveButton.clicked.connect(self.SaveConfigurationFile)
+            #self.SaveButton.clicked.connect(self.SaveConfigurationFile)
             self.SaveButton.setEnabled(False)
             dirgrid.addWidget(self.SaveButton,2,0)
 
@@ -370,6 +397,7 @@ class TabGenData(QTabWidget):
             self.tab_layout.addWidget(self.terminal,5,0,3,3,alignment= Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
         except BaseException as e:
             self.log.log(self,f"Error in Create:{e}")
+            return 
         self.bobj.connect_to_output(self.terminal)
 
         self.load_item_cfg("C:/_DJ/gPCDUtil/ParticleUtility/cfg_gendata/GenPQBSequential.cfg")

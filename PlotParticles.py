@@ -1,4 +1,13 @@
-start_cell = 0
+import matplotlib as plt
+import numpy as np
+from mpl_interactions import ioff, panhandler, zoom_factory
+import plotly.express as px
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+class PlotParticles():    
+    
+    start_cell = 0
     end_cell = 0
     flg_plt_exists  = False
     toggle_flag = False
@@ -134,26 +143,6 @@ start_cell = 0
         self.ax.add_collection3d(Poly3DCollection(poly3d, edgecolors= 'k',facecolors=face_color, linewidths=1, alpha=alpha_val))
         
 
-     
-
-    def read_particle_data(self,file_name):
-        struct_fmt = 'dddddddddddddd'
-        struct_len = struct.calcsize(struct_fmt)
-        #print(struct_len)
-        struct_unpack = struct.Struct(struct_fmt).unpack_from
-        count = 0
-        results = []
-        
-        with open(file_name, "rb") as f:
-            
-            while True:
-                record = pdata()
-                ret = f.readinto(record)
-                if ret == 0:
-                    break
-                results.append(record)
-        p_lst = []
-        return results
     
     
     def plot_particles(self,plist,aspoints=True,scolor=None):

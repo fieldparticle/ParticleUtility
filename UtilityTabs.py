@@ -18,5 +18,5 @@ class UtilityTabs(QTabWidget):
         self.addTab(self.tabFormGenData, 'Solution Suite')
         self.addTab(self.tabFormLatex, 'Latex Utility')
         self.tabFormGenData.Create(self.bobj)
-        self.tabFormLatex.Create(self.bobj,)
+        #self.tabFormLatex.Create(self.bobj,)
       
