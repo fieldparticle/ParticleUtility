@@ -74,30 +74,32 @@ class TabGenData(QTabWidget):
             self.texFileName = os.path.splitext(os.path.basename(self.CfgFile))[0]
             self.dirEdit.setText(self.CfgFile)
             try :
-                self.itemcfg = ConfigUtility(self.CfgFile)
-                self.itemcfg.Create(self.bobj.log,self.CfgFile)
+                self.itemcfgFile = ConfigUtility(self.CfgFile)
+                self.itemcfgFile.Create(self.bobj.log,self.CfgFile)
+                self.itemcfg = self.itemcfgFile.config
                 
             except BaseException as e:
                 self.log.log(self,f"Unable to open item configurations file:{e}")
                 self.hasConfig = False
                 return 
-            if self.itemcfg.type == 'pqbsequential':
-                gen_class = self.load_class(self.itemcfg.gen_class)
+            try:
+                if self.itemcfg.type == 'pqbsequential':
+                    gen_class = self.load_class(self.itemcfg.generate_class)
+            except BaseException as e:
+                self.log.log(self,f"Unable to imprt data generation file: {self.itemcfg.generate_class} error:{e}")
+            return
                 
-        def load_class(self,class_name):
-            module_name, class_name = class_name.rsplit('.', 1)
-            module = importlib.import_module(module_name)
-            return getattr(module, class_name)
+    # Dynamically load the class
+    def load_class(self,class_name):
+        module_name, class_name = class_name.rsplit('.', 1)
+        module = importlib.import_module(module_name)
+        return getattr(module, class_name)
 
    
     def plot_closed(self):
-        self.ltxObj.clearConfigGrp()
-        self.ltxObj.setConfigGroup(self.tab_layout)
-        self.ltxObj.OpenLatxCFG()
+       pass
 
     def gen_data(self):
-        
-        self.ltxObj.gen_data()
         self.ListObj.clear()
         files_names = self.itemcfg.config.data_dir + "/*.bin"
         files = glob.glob(files_names)
@@ -112,11 +114,12 @@ class TabGenData(QTabWidget):
             return
         else:
             self.selected_item = selected_item
-            self.ltxObj.close_plot()
-        if self.selected_item:
-            self.ltxObj.plot(self.selected_item[0].text())
-        else:
-            print("no item selected")
+            #self.ltxObj.close_plot()
+        #if self.selected_item:
+           
+            #self.ltxObj.plot(self.selected_item[0].text())
+        #else:
+         #   print("No Database item is selected.")
        
 
     def Create(self,ParticleBase):
@@ -197,6 +200,7 @@ class TabGenData(QTabWidget):
     def valueChange(self,listObj):  
         selected_items = listObj.selectedItems()
         if selected_items:
+            pass
             #print("List object Value Changed",selected_items[0].text())
-            self.ltxObj.setTypeText(selected_items[0].text())         
+            #self.ltxObj.setTypeText(selected_items[0].text())         
     
