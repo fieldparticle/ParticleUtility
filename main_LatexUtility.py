@@ -5,7 +5,7 @@ import sys                                                    #
 import os                                                     #
 syspth = sys.path                                             #
 cwd = os.getcwd()                   
-#print(cwd)                          #
+print(cwd)                          #
 #shrddir = cwd + "\\python\\shared"                            #
 #sys.path.append(shrddir)           
 #shrddir = cwd + "\\python\\test"                            #

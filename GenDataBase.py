@@ -85,8 +85,6 @@ class GenDataBase:
 
     def create_bin_file(self):
         try:
-            if self.bin_file:
-                del self.bin_file
             self.bin_file = open(self.test_bin_name,"wb")
         except BaseException as e:
             self.log.log(self,e)
@@ -138,7 +136,9 @@ class GenDataBase:
             for row in reader:
                 if row["sel"] == 's':
                     self.select_list.append(row)
-
+    
+    def clear_selections(self):
+        self.select_list.clear()
        
     def calulate_test_properties(self,index,sel_dict):
         try :
@@ -149,40 +149,44 @@ class GenDataBase:
         except BaseException as e:
             raise ValueError(f"Key error in record at calulate_cell_properties:{e}")
         
+        
         self.center_line_length          = 2*self.radius  + self.radius*self.sepdist
         self.particles_in_row       = int(math.floor(1.00 /self.center_line_length))
         self.particles_in_col       = int(math.floor(1.00 /self.center_line_length))
         self.particles_in_layers    = int(math.floor(1.00 /self.center_line_length))
         self.particles_in_cell      = self.particles_in_row*self.particles_in_col*self.particles_in_layers
-        self.particles_in_space	    = int(self.particles_in_row*self.particles_in_col*self.particles_in_layers)
+        #self.particles_in_space	    = int(self.particles_in_row*self.particles_in_col*self.particles_in_layers)
         # Somtimes we do very small number of particles to check the pattern
-        if (self.particles_in_space > self.number_particles):
-            self.particles_in_space = self.number_particles
-        self.cell_array_size      = self.particles_in_space+10
-        self.num_collisions_per_cell = math.ceil(self.particles_in_space * self.collision_density/2.0)
+        self.cell_array_size      = self.particles_in_cell+10
+        self.num_collisions_per_cell = math.ceil(self.particles_in_cell * self.collision_density/2.0)
         # Calulate side length based on particles per cell
         side_len = 0
-        while True:
+        
+        while side_len < 1000:
             side_len += 1
-            if (side_len * side_len * side_len * self.particles_in_space >= self.number_particles):
+            if (side_len * side_len * side_len * self.particles_in_cell >= self.number_particles):
                 break
+        print(f"Break at {side_len}")
+        
         self.side_length = side_len
         self.cell_x_len = self.side_length+1
         self.cell_y_len = self.side_length+1
         self.cell_z_len = self.side_length+1
-        self.tot_num_cells = self.number_particles / self.particles_in_space
+        
+        self.tot_num_cells = self.number_particles / self.particles_in_cell
         self.tot_num_collsions = math.ceil(int(self.tot_num_cells *self.num_collisions_per_cell*2.0 ))
         self.set_file_name = "{:03d}CollisionDataSet{:d}X{:d}X{:d}".format(index,self.number_particles,self.tot_num_collsions,side_len)
         self.test_file_name = self.itemcfg.data_dir + '/' + self.set_file_name + '.tst'
         self.test_bin_name = self.itemcfg.data_dir + '/' + self.set_file_name + '.bin'
         self.report_file = self.itemcfg.data_dir + '/' + self.set_file_name
-
+        return 
+        # This crashes 
         self.log.log(self,f"Collsion Density: { self.collision_density},Number particles:{self.number_particles},Radius: {self.radius}, Separation Dist: {self.sepdist }, Center line length: {self.center_line_length:.2f}",LogOnly=True)
-        self.log.log(self,f"Particles in row: {self.particles_in_row}, Particles in Column: {self.particles_in_col}, Particles per cell: {self.particles_in_cell}")
-        self.log.log(self,f"Particles in space: {self.particles_in_space}, Cell array size: {self.cell_array_size }")
+        self.log.log(self,f"Particles in row: {self.particles_in_row}, Particles in Column: {self.particles_in_col}, Particles per cell: {self.particles_in_cell}",LogOnly=True)
+        self.log.log(self,f"Particles in space: {self.particles_in_space}, Cell array size: {self.cell_array_size }",LogOnly=True)
 
     def write_test_file(self,index,sel_dict):
-        
+
         try:
             f = open(self.test_file_name,'w')
         except BaseException as e:
@@ -195,9 +199,10 @@ class GenDataBase:
         f.write(fstr)
         fstr = f"CellAryL = {self.cell_z_len+1};\n"     
         f.write(fstr)
-        fstr = f"radius = {self.radius};\n"
+      
+        fstr = f"radius = {float(self.radius)};\n"
         f.write(fstr)
-        fstr = f"PartPerCell = {self.particles_in_space};\n"
+        fstr = f"PartPerCell = {self.particles_in_cell};\n"
         f.write(fstr)
         fstr = f"pcount = {self.number_particles};\n"
         f.write(fstr)
@@ -225,6 +230,7 @@ class GenDataBase:
         f.write(fstr)
         fstr = f"ColArySize = {self.cell_array_size};\n"
         f.write(fstr)
+        f.flush()
         f.close()
 
 

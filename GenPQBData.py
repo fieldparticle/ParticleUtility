@@ -46,7 +46,8 @@ class GenPQBData(GenDataBase):
         self.w_list = []
         self.particle_count = 0
         for zz in range(self.cell_z_len-1):
-            thread_worker.emit(len(self.w_list))
+            ppc = float(self.particle_count/self.number_particles)*100.0
+            thread_worker.emit(ppc)
             for yy in range(self.cell_y_len-1):
                 for xx in range(self.cell_x_len-1):
                     self.collsions_in_cell_count = 0

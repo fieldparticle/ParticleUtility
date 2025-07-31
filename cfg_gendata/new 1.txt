@@ -1,0 +1,4 @@
+
+    def update_terminal(self,n):
+        #self.terminal.append(f"{n:.3f}% done")
+        print(f"{n:.3f}% done")

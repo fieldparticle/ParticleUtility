@@ -15,6 +15,7 @@ from tkinter import messagebox as mb
 import glob
 import traceback
 import time
+from PlotParticle import *
 
 class WorkerSignals(QObject):
     """Signals from a running worker thread.
@@ -84,13 +85,8 @@ class TabGenData(QTabWidget):
     gen_class = None
     thread = None
     current_test_file = 0
-   
-
     
     
-    def progress_fn(self, n):
-        print(f"{n:.1f}% done")
-
     def execute_this_fn(self, progress_callback):
         for n in range(0, 5):
             time.sleep(1)
@@ -123,11 +119,18 @@ class TabGenData(QTabWidget):
         self.SaveButton.setEnabled(True)
         self.GenDataButton.setEnabled(True)
     
+
     def SaveConfigurationFile(self):
         self.ltxObj.updateCfgData()
         
-        #self.ltxObj.clearConfigGrp()
+    ##############################################################################
+    # Configuration file stuff
+    # 
+    ##############################################################################
 
+    #******************************************************************
+    # Load the configuration data
+    #
     def load_item_cfg(self,file):
             self.CfgFile = file
             self.texFolder = os.path.dirname(self.CfgFile)
@@ -162,9 +165,6 @@ class TabGenData(QTabWidget):
         # If a valid configuation file name is returned
         if folder[0]:
             self.load_item_cfg(folder[0])
-        
-            
-    
                 
     # Dynamically load the class
     def load_class(self,class_name):
@@ -173,21 +173,17 @@ class TabGenData(QTabWidget):
         return getattr(module, class_name)
 
    
-    def plot_closed(self):
-       pass
-
-    def update_list_widget(self):
-        self.ListObj.clear()
-        files_names = self.itemcfg.config.data_dir + "/*.bin"
-        files = glob.glob(files_names)
-        for ii in files:
-                self.ListObj.addItem(ii)
-
-   
-
+    ##############################################################################
+    # Generate data stuff
+    # 
+    ##############################################################################
+    #******************************************************************
+    # Start the data threaded generaton process
+    #
     def gen_data(self):
          # Pass the function to execute
         index = 0
+        self.current_test_file = 0
         self.gen_class.create(self,self.itemcfg) 
         # Create the data directory if it does not exist
         try:
@@ -196,6 +192,7 @@ class TabGenData(QTabWidget):
         except BaseException as e1:
             self.log.log(self,f"Error creating data directory:{self.itemcfg.data_dir}, err: {e1}")
         # Open the selections file
+        self.gen_class.clear_selections()
         try :
             self.gen_class.open_selections_file()
         except BaseException as e2:
@@ -203,39 +200,63 @@ class TabGenData(QTabWidget):
         
         self.clear_files()
         self.start_thread()
-        
-    def thread_complete(self):
-        self.current_test_file+=1
-        if (self.current_test_file >4) :
-            print("COMPLETE!")
-            return
-          # Pass the function to execute
-        self.start_thread()
-        print("NEXT THREAD")
-   
+
+    #******************************************************************
+    # Update the list widget
+    #
+    def update_list_widget(self):
+        self.ListObj.clear()
+        files_names = self.itemcfg.config.data_dir + "/*.bin"
+        files = glob.glob(files_names)
+        for ii in files:
+                self.ListObj.addItem(ii)
+
+    #******************************************************************
+    # Set up and start the thread
+    #
     def start_thread(self):
+        self.terminal.clear()
         worker = Worker(self.do_one_file )  # Any other args, kwargs are passed to the run function
         worker.signals.result.connect(self.print_output)
         worker.signals.finished.connect(self.thread_complete)
-        worker.signals.progress.connect(self.progress_fn)
+        worker.signals.progress.connect(self.update_terminal)
         # Execute
         self.threadpool.start(worker)
+        
+    def thread_complete(self):
+        self.current_test_file+=1
+        if (self.current_test_file >= len(self.gen_class.select_list)) :
+            print(f"COMPLETE!")
+            return
+          # Pass the function to execute
+        print(f"Next Thread index:{self.current_test_file}")
+        self.start_thread()
+        
+   
+   
 
     def do_one_file(self,progress_callback):
+        
         try:
             # Calulate the the test propeties
             index = self.current_test_file
             ii = self.gen_class.select_list[index]
+            print(f"{index}:{ii}")
             self.gen_class.calulate_test_properties(index,ii)
             self.gen_class.write_test_file(index,ii)
             self.gen_class.create_bin_file()
             self.gen_class.do_cells(progress_callback)
             self.gen_class.close_bin_file()
-            
         except BaseException as e3:
-            self.log.log(self,f"Error writing test file err:{e3}")
-        self.current_test_file+=1
-        return "Next File."
+            print("Thread Error")
+            raise BaseException(f"Error writing test file err:{e3}")
+            
+        return ""
+
+    def update_terminal(self,n):
+        print(f"{n:.3f}% done")
+        self.terminal.append(f"{n:.3f}% done")
+
 
     def clear_files(self):
         clr_path = self.itemcfg.data_dir + "/*.csv"
