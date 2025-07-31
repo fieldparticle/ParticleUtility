@@ -5,13 +5,13 @@ import sys                                                    #
 import os                                                     #
 syspth = sys.path                                             #
 cwd = os.getcwd()                   
-print(cwd)                          #
+#print(cwd)                          #
 #shrddir = cwd + "\\python\\shared"                            #
 #sys.path.append(shrddir)           
 #shrddir = cwd + "\\python\\test"                            #
 #sys.path.append(shrddir)           
 import getpass                                                #
-print(getpass.getuser())                                      #
+#print(getpass.getuser())                                      #
 guser = getpass.getuser()                            #
 # Now do imports                                              #
 ###############################################################
@@ -26,8 +26,8 @@ bc = ParticleBase("FrontEnd")
 bc.Create("ParticleUtil.cfg",'ParicleUtil.log')
 
 if __name__ == '__main__':
-    f = matplotlib.matplotlib_fname()
-    print(f)
+    #f = matplotlib.matplotlib_fname()
+    #print(f)
     app = QApplication(sys.argv)
     screens = app.screens()
     window = UtilityMainWin(bc,"UtilMainWin")

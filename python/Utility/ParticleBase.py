@@ -22,7 +22,7 @@ class ParticleBase:
 
         
         """
-        print(f"Created " + ObjName)
+       # print(f"Created " + ObjName)
         self.ObjName = ObjName
         
     def Create(self,CfgFileName,LogName):
@@ -58,35 +58,6 @@ class ParticleBase:
             self.log.log(self,"Linked ot output")
         except BaseException as e:
             self.log.log(self,e)
-# @abstrctmethod
-    def testObject(self,modNumber,dbglvl):
-        if modNumber == 1 and dbglvl == 5:
-            print(f"Running Mod" , modNumber , " Test")
-            self.log.log(   inspect.currentframe().f_lineno,
-                            __file__,
-                            inspect.currentframe().f_code.co_name,
-                            self.ObjName,
-                            0,
-                            "Test 1 Success")
-            self.cfg.testObject(modNumber,dbglvl)
-            return 0
-        elif modNumber == 2 and dbglvl == 5:
-            print(f"Running Mod" , modNumber , " Test")
-            self.log.log(   inspect.currentframe().f_lineno,
-                            __file__,
-                            inspect.currentframe().f_code.co_name,
-                            self.ObjName,
-                            0,
-                            "Test 2 Success")
-            return 0
-        
-    
-        self.log.log(   inspect.currentframe().f_lineno,
-                            __file__,
-                            inspect.currentframe().f_code.co_name,
-                            self.Moniker,
-                            1,
-                            "Invalid test number")
 
     def Open(self):
         self.log.Open()

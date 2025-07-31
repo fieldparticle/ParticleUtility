@@ -7,15 +7,26 @@ from PyQt6.QtWidgets import QFileDialog, QGroupBox,QMessageBox
 from PyQt6.QtWidgets import QGridLayout, QTabWidget, QLineEdit,QListWidget
 from PyQt6.QtWidgets import QPushButton, QGroupBox,QTextEdit
 from PyQt6 import QtCore
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt,QThread,QTimer, pyqtSignal,pyqtSlot,QObject
 from ConfigUtility import *
-#from LatexClass import *
-#from CfgLabel import *
-#from FPIBGException import *
-#from LatexDataConfigurationClass import *
-
+import tkinter as tk
+from tkinter import * 
+from tkinter import messagebox as mb
 import glob
 
+class Worker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+
+    def __init__(self,parent):
+        super().__init__()
+        self.parent = parent
+        
+
+    def run(self):
+        self.parent.do_one_file()
+        self.progress.emit(1)
+        self.finished.emit()
 
 class TabGenData(QTabWidget):
     
@@ -23,20 +34,38 @@ class TabGenData(QTabWidget):
     CfgFile = ""
     texFileName = ""
     hasConfig = False
-    itemcfg = ConfigUtility("Latex Class")
-    startDir = "J:/MOD/FPIBGUtility/Latex"
-    startDir = "J:/FPIBGJournalStaticV2/rpt"
-    startDir = "J:/FPIBGDATAPY/cfg"
+    itemcfg = None
     selected_item = -1
     #ObjName = ""
     gen_class = None
+    thread = None
+    current_test_file = 0
    
 
+    finished = pyqtSignal()
+    progress = pyqtSignal(int)
+
+    def set_up_threading(self):
+        # Step 2: Create a QThread object
+        self.thread = QThread()
+        # Step 3: Create a worker object
+        self.worker = Worker(self)
+        # Step 4: Move worker to the thread
+        self.worker.moveToThread(self.thread)
+        # Step 5: Connect signals and slots
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.next_thread)
+        self.worker.progress.connect(self.reportProgress)
+        # Step 6: Start the thread
+        
+
+    def reportProgress(self,prog):
+        print(prog)
 
     def __init__(self, *args, **kwargs ):
         super().__init__(*args, **kwargs )
-        
-       
         
     
     def setSize(self,control,H,W):
@@ -67,12 +96,14 @@ class TabGenData(QTabWidget):
         folder = QFileDialog.getOpenFileName(self, ("Open File"),
                                        self.startDir,
                                        ("Configuration File (*.cfg)"))
-        
+        # If a valid configuation file name is returned
         if folder[0]:
             self.CfgFile = folder[0]
             self.texFolder = os.path.dirname(self.CfgFile)
             self.texFileName = os.path.splitext(os.path.basename(self.CfgFile))[0]
             self.dirEdit.setText(self.CfgFile)
+
+            # Open the item configuration filke
             try :
                 self.itemcfgFile = ConfigUtility(self.CfgFile)
                 self.itemcfgFile.Create(self.bobj.log,self.CfgFile)
@@ -83,11 +114,15 @@ class TabGenData(QTabWidget):
                 self.hasConfig = False
                 return 
             try:
-                if self.itemcfg.type == 'pqbsequential':
-                    gen_class = self.load_class(self.itemcfg.generate_class)
+                # Import the class named in generate_class
+                self.gen_class = self.load_class(self.itemcfg.generate_class)()    
             except BaseException as e:
-                self.log.log(self,f"Unable to imprt data generation file: {self.itemcfg.generate_class} error:{e}")
-            return
+                self.log.log(self,f"Unable to import data generation file: {self.itemcfg.generate_class} error:{e}")
+
+            # Enable to generate data
+            self.GenDataButton.setEnabled(True)
+            
+    
                 
     # Dynamically load the class
     def load_class(self,class_name):
@@ -99,12 +134,70 @@ class TabGenData(QTabWidget):
     def plot_closed(self):
        pass
 
-    def gen_data(self):
+    def update_list_widget(self):
         self.ListObj.clear()
         files_names = self.itemcfg.config.data_dir + "/*.bin"
         files = glob.glob(files_names)
         for ii in files:
                 self.ListObj.addItem(ii)
+
+    def gen_data(self):
+        index = 0
+        self.gen_class.create(self,self.itemcfg) 
+        # Create the data directory if it does not exist
+        try:
+            if not os.path.exists(self.itemcfg.data_dir):
+                os.makedirs(self.itemcfg.data_dir)
+        except BaseException as e1:
+            self.log.log(self,f"Error creating data directory:{self.itemcfg.data_dir}, err: {e1}")
+        # Open the selections file
+        try :
+            self.gen_class.open_selections_file()
+        except BaseException as e2:
+            self.log.log(self,f"Error opening:{self.itemcfg.selections_file_text}, err: {e2}")
+        
+        self.clear_files()
+        self.set_up_threading()
+        self.thread.start()
+       
+    def do_one_file(self):
+        try:
+            # Calulate the the test propeties
+            index = self.current_test_file
+            ii = self.gen_class.select_list[index]
+            self.gen_class.calulate_test_properties(index,ii)
+            self.gen_class.write_test_file(index,ii)
+            self.gen_class.create_bin_file()
+            self.gen_class.do_cells()
+            self.gen_class.close_bin_file()
+        except BaseException as e3:
+            self.log.log(self,f"Error writing test file err:{e3}")
+
+
+    def next_thread(self):
+        if self.current_test_file>len(self.gen_class.select_list):
+            return
+        self.set_up_threading()
+        self.thread.start()
+        self.current_test_file+=1
+
+
+    def clear_files(self):
+        clr_path = self.itemcfg.data_dir + "/*.csv"
+        files = glob.glob(clr_path)
+        for f in files:
+            os.remove(f)
+
+        clr_path = self.itemcfg.data_dir + "/*.bin"
+        files = glob.glob(clr_path)
+        for f in files:
+            os.remove(f)
+        
+        clr_path = self.itemcfg.data_dir + "/*.tst"
+        files = glob.glob(clr_path)
+        for f in files:
+            os.remove(f)
+
 
 
     def plot_particles(self):
@@ -175,7 +268,13 @@ class TabGenData(QTabWidget):
             self.GenDataButton.setEnabled(False)
             dirgrid.addWidget(self.GenDataButton,2,2)
 
-            
+            self.StopButton = QPushButton("Stop Gen")
+            self.setSize(self.StopButton,30,100)
+            self.StopButton.setStyleSheet("background-color:  #dddddd")
+            self.StopButton.clicked.connect(self.gen_data)
+            self.StopButton.setEnabled(False)
+            dirgrid.addWidget(self.StopButton,2,3)
+
             self.ListObj =  QListWidget()
             #self.ListObj.setFont(self.font)
             self.ListObj.setStyleSheet("background-color:  #FFFFFF")

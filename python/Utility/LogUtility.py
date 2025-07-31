@@ -10,7 +10,7 @@ class LogUtility:
     # @param   ApplicationName --  (string) Passes the name of the calling application.
     def __init__ (self,ApplicationName):
         self.appName = ApplicationName
-        print(type(self))
+        #print(type(self))
         
 
     def CheckLogFile(self,ErrString)-> bool:
@@ -19,7 +19,7 @@ class LogUtility:
         self.FileObj = open(self.logName, "r")
         for line in self.FileObj:
             if ErrString in line:
-                print(line)
+                #print(line)
                 return True
         return False    
     widget = None
@@ -30,7 +30,7 @@ class LogUtility:
     # @param   LogName -- (string) the name of the log file which will be written to.
     def Create(self,LogName):
         self.logName = LogName
-        print("Created Log File for ",self.appName)
+        #print("Created Log File for ",self.appName)
 
     def fileObj(self) : pass
 
@@ -88,6 +88,7 @@ class LogUtility:
             self.widget.append(logstring)
         self.fileObj.write(str(logstring)+"\n")  
         self.fileObj.flush()
+        print(logstring)
 ## Standard close. Closes the log file.
     def Close(self):
         self.fileObj.close()
