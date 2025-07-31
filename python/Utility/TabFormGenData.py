@@ -28,8 +28,8 @@ class TabGenData(QTabWidget):
     startDir = "J:/FPIBGJournalStaticV2/rpt"
     startDir = "J:/FPIBGDATAPY/cfg"
     selected_item = -1
-    ObjName = ""
-    ltxObj = None
+    #ObjName = ""
+    gen_class = None
    
 
 
@@ -63,7 +63,7 @@ class TabGenData(QTabWidget):
   
     def browseFolder(self):
         """ Opens a dialog window for the user to select a folder in the file system. """
-        #folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        self.startDir = self.cfg.gen_start_dir
         folder = QFileDialog.getOpenFileName(self, ("Open File"),
                                        self.startDir,
                                        ("Configuration File (*.cfg)"))
@@ -81,7 +81,13 @@ class TabGenData(QTabWidget):
                 self.log.log(self,f"Unable to open item configurations file:{e}")
                 self.hasConfig = False
                 return 
-           
+            if self.itemcfg.type == 'pqbsequential':
+                gen_class = self.load_class(self.itemcfg.gen_class)
+                
+        def load_class(self,class_name):
+            module_name, class_name = class_name.rsplit('.', 1)
+            module = importlib.import_module(module_name)
+            return getattr(module, class_name)
 
    
     def plot_closed(self):
@@ -90,6 +96,7 @@ class TabGenData(QTabWidget):
         self.ltxObj.OpenLatxCFG()
 
     def gen_data(self):
+        
         self.ltxObj.gen_data()
         self.ListObj.clear()
         files_names = self.itemcfg.config.data_dir + "/*.bin"
@@ -112,8 +119,8 @@ class TabGenData(QTabWidget):
             print("no item selected")
        
 
-    def Create(self,FPIBGBase):
-        self.bobj = FPIBGBase
+    def Create(self,ParticleBase):
+        self.bobj = ParticleBase
         self.cfg = self.bobj.cfg.config
         self.log = self.bobj.log
         self.log.log(self,"TabFormLatex finished init.")

@@ -2,7 +2,7 @@ import sys
 from PyQt6.QtWidgets import QApplication, QWidget,  QFormLayout, QGridLayout, QTabWidget, QLineEdit, QDateEdit, QPushButton
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
-from TabClassLatex import *
+from UtilityTabs import *
 
 GlobalPrintbuffer =  None
 
@@ -22,7 +22,7 @@ class UtilityMainWin(QWidget):
         self.setWindowIcon(QIcon("Logo.png"))
         main_layout = QGridLayout(self)
         ## Create a tab widget
-        self.tabSetup = TabObjLatex(self)
+        self.tabSetup = UtilityTabs(self)
         self.tabSetup.Create(FPIBGBase)
         main_layout.addWidget(self.tabSetup, 0, 0, 2, 1)
         self.quitBtn = QPushButton('Quit')

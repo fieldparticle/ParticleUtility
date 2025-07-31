@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt
 from TabFormLatex import *
 from TabFormGenData import *
 ## Add all tabs
-class TabObjLatex(QTabWidget):
+class UtilityTabs(QTabWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     

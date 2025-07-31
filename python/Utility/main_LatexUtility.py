@@ -6,10 +6,10 @@ import os                                                     #
 syspth = sys.path                                             #
 cwd = os.getcwd()                   
 print(cwd)                          #
-shrddir = cwd + "\\python\\shared"                            #
-sys.path.append(shrddir)           
-shrddir = cwd + "\\python\\test"                            #
-sys.path.append(shrddir)           
+#shrddir = cwd + "\\python\\shared"                            #
+#sys.path.append(shrddir)           
+#shrddir = cwd + "\\python\\test"                            #
+#sys.path.append(shrddir)           
 import getpass                                                #
 print(getpass.getuser())                                      #
 guser = getpass.getuser()                            #
