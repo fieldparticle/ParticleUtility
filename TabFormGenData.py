@@ -171,7 +171,8 @@ class TabGenData(QTabWidget):
             self.log.log(self,f"Error opening:{self.itemcfg.selections_file_text}, err: {e2}")
         
         self.clear_files()
-        self.start_thread()
+        self.do_all_files_dbg()
+        #self.start_thread()
 
     #******************************************************************
     # Update the list widget
@@ -212,8 +213,28 @@ class TabGenData(QTabWidget):
           # Pass the function to execute
         print(f"Next Thread index:{self.current_test_file}")
         self.start_thread()
-        
+
+    
     #******************************************************************
+    # Thread that does one file set
+    #
+    #     
+    #******************************************************************
+    def do_all_files_dbg(self):
+        index = 0
+        try:
+            for ii in self.gen_class.select_list:
+                print(f"{index}:{ii}")
+                self.gen_class.calulate_test_properties(index,ii)
+                self.gen_class.write_test_file(index,ii)
+                self.gen_class.create_bin_file()
+                self.gen_class.do_cells(None)
+                self.gen_class.close_bin_file()
+                index+=1
+        except BaseException as e3:
+            print("Thread Error")
+            raise BaseException(f"Error writing test file err:{e3}")
+        self.update_list_widget()
     # Thread that does one file set
     #
     def do_one_file(self,progress_callback):

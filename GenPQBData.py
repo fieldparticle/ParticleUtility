@@ -8,6 +8,7 @@ class GenPQBData(GenDataBase):
 
     def place_particles(self,xx,yy,zz,row,col,layer,w_list):
         
+        skip_flag = False
         if(self.particles_in_cell_count > self.particles_in_cell ):
             return 2
         
@@ -20,15 +21,16 @@ class GenPQBData(GenDataBase):
        
         
         if(self.collsions_in_cell_count <= self.num_collisions_per_cell):
-            ry = 0.5 + 2.0*self.radius + self.center_line_length*col+yy
+            rx = 0.5 + 2.0*self.radius + self. particle_separation * self.radius + col*(self.inter_particle_distance+2.0*self.radius)+xx
             self.collsions_in_cell_count+=2
             particle_struct.ptype = 1
         else:
             particle_struct.ptype = 0
-            ry = 0.5 + self.radius + 0.15 * self.radius + self.center_line_length*col+yy
+            rx = 0.5 + self.radius + self. particle_separation * self.radius + col*(2.0*self.inter_particle_distance+2.0*self.radius)+xx
 
-        rx = 0.5 + self.radius + 0.15 * self.radius + self.center_line_length*row+xx
-        rz = 0.5 + self.radius + 0.15 * self.radius + self.center_line_length*layer+zz
+        ry = 0.5 + self.radius + self. particle_separation * self.radius + row*(2.0*self.inter_particle_distance+2.0*self.radius)+yy
+        rz = 0.5 + self.radius + self. particle_separation * self.radius + layer*(2.0*self.inter_particle_distance+2.0*self.radius)+zz
+        #rz = 0.5 + self.radius + self. particle_separation * self.radius + self.center_line_length*layer+zz
     
         particle_struct.pnum = self.particle_count
         particle_struct.rx = rx
@@ -45,9 +47,23 @@ class GenPQBData(GenDataBase):
         ret = 0
         self.w_list = []
         self.particle_count = 0
+
+        # Calulate distances
+        self. particle_separation = self.itemcfg.particle_separation
+        self.size_in_row = 1.0/self.particles_in_row #C
+        self.center_particle_distance = self.size_in_row-2*self.radius #d
+        self.inter_particle_distance = self.center_particle_distance/2.0 #S
+
+        # Add zeroth particle
+        empty_struct = pdata()
+        self.w_list.append(empty_struct)
+        self.particle_count
+
+        # Run thorough all of the dimensions and add particles
         for zz in range(self.cell_z_len-1):
             ppc = float(self.particle_count/self.number_particles)*100.0
-            thread_worker.emit(ppc)
+            if  thread_worker != None:
+                thread_worker.emit(ppc)
             for yy in range(self.cell_y_len-1):
                 for xx in range(self.cell_x_len-1):
                     self.collsions_in_cell_count = 0

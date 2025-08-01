@@ -54,6 +54,7 @@ class GenDataBase:
     select_list = []
     sepdist = 0.05
     bin_file = None
+    particle_separation = 0.0
     
     views = [('XY',   (90, -90, 0)),
         ('XZ',    (0, -90, 0)),
@@ -90,6 +91,7 @@ class GenDataBase:
             self.log.log(self,e)
         self.count = 0
 
+    
     def write_bin_file(self,w_lst):
         try:
             for ii in w_lst:
