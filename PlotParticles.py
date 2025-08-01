@@ -4,6 +4,8 @@ from mpl_interactions import ioff, panhandler, zoom_factory
 import plotly.express as px
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import os
+from ConfigUtility import *
 
 class PlotParticles():    
     
@@ -15,78 +17,132 @@ class PlotParticles():
     cur_file = ""
     flg_plot_cell_faces = False
     flg_plot_cells = False
-    
-# Connect the event handler to the source figure
-####################################################################################################
-    def toggle_cell_face(self):
-        if self.flg_plot_cell_faces == True:
-            self.flg_plot_cell_faces = False
-        else:
-            self.flg_plot_cell_faces = True
+    particle_data = None
+    item_cfg = None
+
+    views = [('XY',   (90, -90, 0)),
+        ('XZ',    (0, -90, 0)),
+        ('YZ',    (0,   0, 0)),
+        ('-XY', (-90,  90, 0)),
+        ('-XZ',   (0,  90, 0)),
+        ('-YZ',   (0, 180, 0))]   
+
+    def create(self,itemcfg,parent):
+        self.itemcfg = itemcfg
+        self.parent = parent
+
+    #******************************************************************
+    # Save off data start the plot.
+    #
+    def plot(self,itemcfg,particle_data,file_name,view_num=None,cells_on=True):
+        self.itemcfg = itemcfg
+        self.particle_data = particle_data
+        self.cur_file = file_name        
+        self.set_up_plot()
+        file_prefix = os.path.splitext(file_name)[0]
+        self.test_file_name = file_prefix + ".tst"
+        self.tstcfg = ConfigUtility(self.test_file_name)
+        self.tstcfg.Create(self.parent.bobj.log,self.test_file_name)
+        self.tst_side_length = self.itemcfg.start_sidelen
+        self.do_plot()
+        plt.show(block=False)
+    #******************************************************************
+    # Do the plot
+    #    
+    def do_plot(self,view_num=None):
+        self.plot_particles(aspoints=False)
         if self.flg_plot_cells == True:
-            self.update_plot()
-        else:
-            print("Plotting cells is off.")
-
-    def toggle_cells(self):
-        if(self.flg_plot_cells == True):
-            self.flg_plot_cells = False
-        else:
-            self.flg_plot_cells = True
-        self.update_plot()
-
-    def set_view_num(self,viewnum):
-        self.cur_view_num = viewnum
-
-    def set_cell_toggle_flag(self, flag):
-        self.toggle_flag = flag
-
-    def close_plot(self):
-        plt.close()
-
-    def set_up_plot(self):
-        self.fig = plt.figure(1,figsize=(12, 10))
-        self.ax = self.fig.add_subplot(projection='3d')
-        self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
-        
-
-    def do_plot(self,view_num=None,cells_on=True):
-        self.plot_particles(self.plist,aspoints=False)
-        if self.flg_plot_cells == True:
-            for ii in range(self.tst_side_length):
-                for jj in range(self.tst_side_length):
-                    for kk in range(self.tst_side_length):
+            for ii in range(1,self.tst_side_length+1):
+                for jj in range(1,self.tst_side_length+1):
+                    for kk in range(1,self.tst_side_length+1):
                         self.plot_cells(ii,jj,kk)
 
         self.end_plot()
         self.flg_plt_exists  = True
 
-    def update_plot(self): 
-        plt.cla()
-        self.do_plot()
-        plt.show(block=False)
-        plt.pause(0.01)
-        
-    def plot_base(self,file_name,view_num=None,cells_on=True):
-        self.cur_file = file_name        
-        self.set_up_plot()
-        file_prefix = os.path.splitext(file_name)[0]
-        self.test_file_name = file_prefix + ".tst"
-        self.tst_file_cfg.Create(self.bobj.log,self.test_file_name)
-        self.tst_side_length = int(self.cfg.start_sidelen_text)
-        self.plist = self.read_particle_data(file_name)
-        self.do_plot()
-        plt.show(block=False)
-        
-    def side_value_changed(self,side_txt):
-        if len(side_txt) < 2:
-            return None
-        self.start_cell = int(side_txt[0])
-        self.end_cell = int(side_txt[1])
-        
-    def plot_view_changed(self,view):
-        self.fig.canvas.draw()
 
+    #******************************************************************
+    # Set up the plot
+    #
+    def set_up_plot(self):
+        self.fig = plt.figure(1,figsize=(12, 10))
+        self.ax = self.fig.add_subplot(projection='3d')
+        self.fig.canvas.mpl_connect('scroll_event', self.on_scroll)
+
+
+    #******************************************************************
+    # plot the particles
+    #
+    def plot_particles(self,aspoints=True,scolor=None):
+        
+        p_count = 0
+        # Get the number facets for smoothness
+        sphere_facets = self.itemcfg.sphere_facets
+        # Get the start particle number
+        p_start = self.itemcfg.particle_range[0]
+        # Get the end particle number
+        p_end = int(self.itemcfg.particle_range[1])
+        # Set up the sphere data
+        theta = np.linspace(0, 2 * np.pi, sphere_facets)
+        phi = np.linspace(0, np.pi, sphere_facets)
+        theta, phi = np.meshgrid(theta, phi)
+        # Set the default color
+        pcolor = self.itemcfg.particle_color
+        # If plotting as points just do a scatter
+        if aspoints == True:    
+            self.ax.scatter(self.particle_data[:,1],self.particle_data[:,2],self.particle_data[:,3])
+        # If doing spheres 
+        else:
+            # Traverse particle data
+            for ii in self.particle_data:
+                if (p_count >= p_start):
+                    # Convert to Cartesian coordinates
+                    x = ii.rx + ii.radius * np.sin(phi) * np.cos(theta)
+                    y = ii.ry + ii.radius * np.sin(phi) * np.sin(theta)
+                    z = ii.rz + ii.radius * np.cos(phi)
+                    # If the particle is in collision use a different color
+                    if ii.ptype == 1:
+                        self.ax.plot_surface(x, y, z, color='blue',alpha=0.8)
+                    # Else uese standar color
+                    else:
+                        self.ax.plot_surface(x, y, z, color=pcolor,alpha=0.8)
+                    #print(f"Particle {p_count} Loc: <{ii.rx:2f},{ii.ry:2f},{ii.rz:2f})>")
+                    
+                p_count +=1
+                if(p_count > p_end):
+                    break
+    #******************************************************************
+    # plot the cells
+    #                
+    def plot_cells(self,cx,cy,cz):
+        R = 0.5
+        pt_lst = np.zeros((8,3))
+        pt_lst[0]= [cx-R,cy-R,cz-R]
+        pt_lst[1]= [cx+R,cy-R,cz-R]
+        pt_lst[2]= [cx+R,cy+R,cz-R]
+        pt_lst[3]= [cx-R,cy+R,cz-R]
+        pt_lst[4]= [cx-R,cy-R,cz+R]
+        pt_lst[5]= [cx+R,cy-R,cz+R]
+        pt_lst[6]= [cx+R,cy+R,cz+R]
+        pt_lst[7]= [cx-R,cy+R,cz+R]
+        x = pt_lst[:,0]
+        y = pt_lst[:,1]
+        z = pt_lst[:,2]
+
+        # Face IDs
+        vertices = [[0,1,2,3],[1,5,6,2],[3,2,6,7],[4,0,3,7],[5,4,7,6],[4,5,1,0]]
+        tupleList = list(zip(x, y, z))
+        poly3d = [[tupleList[vertices[ix][iy]] for iy in range(len(vertices[0]))] for ix in range(len(vertices))]
+        face_color = 'y'
+        if self.flg_plot_cell_faces == True:
+            alpha_val = 0.5
+        else:
+            alpha_val = 0.0
+        self.ax.add_collection3d(Poly3DCollection(poly3d, edgecolors= 'k',facecolors=face_color, linewidths=1, alpha=alpha_val))
+
+    #******************************************************************
+    # End plot processing
+    #                
     def end_plot(self,sidelen = None):
         view_num=self.cur_view_num
         self.ax.view_init(elev=self.views[view_num][1][0], azim=self.views[view_num][1][1], roll=self.views[view_num][1][2])
@@ -110,71 +166,8 @@ class PlotParticles():
         self.ax.set_title('3D Sphere')
         plt.gca().set_aspect('equal')
         #plt.get_current_fig_manager().full_screen_toggle()
-        
-
-
-    def get_side_length_txt(self):
-        side_txt = f"{self.tst_side_length}:{self.tst_side_length}"
-        
-    def plot_cells(self,cx,cy,cz):
-        R = 0.5
-        pt_lst = np.zeros((8,3))
-        pt_lst[0]= [cx-R,cy-R,cz-R]
-        pt_lst[1]= [cx+R,cy-R,cz-R]
-        pt_lst[2]= [cx+R,cy+R,cz-R]
-        pt_lst[3]= [cx-R,cy+R,cz-R]
-        pt_lst[4]= [cx-R,cy-R,cz+R]
-        pt_lst[5]= [cx+R,cy-R,cz+R]
-        pt_lst[6]= [cx+R,cy+R,cz+R]
-        pt_lst[7]= [cx-R,cy+R,cz+R]
-        x = pt_lst[:,0]
-        y = pt_lst[:,1]
-        z = pt_lst[:,2]
-        # Face IDs
-        vertices = [[0,1,2,3],[1,5,6,2],[3,2,6,7],[4,0,3,7],[5,4,7,6],[4,5,1,0]]
-        
-        tupleList = list(zip(x, y, z))
-        poly3d = [[tupleList[vertices[ix][iy]] for iy in range(len(vertices[0]))] for ix in range(len(vertices))]
-        face_color = 'y'
-        if self.flg_plot_cell_faces == True:
-            alpha_val = 0.5
-        else:
-            alpha_val = 0.0
-        self.ax.add_collection3d(Poly3DCollection(poly3d, edgecolors= 'k',facecolors=face_color, linewidths=1, alpha=alpha_val))
-        
-
     
     
-    def plot_particles(self,plist,aspoints=True,scolor=None):
-        
-        p_count = 0
-        sphere_facets = int(self.cfg.sphere_facets_text)
-        p_start = int(self.cfg.particle_range_array[0])
-        p_end = int(self.cfg.particle_range_array[1])
-        theta = np.linspace(0, 2 * np.pi, sphere_facets)
-        phi = np.linspace(0, np.pi, sphere_facets)
-        theta, phi = np.meshgrid(theta, phi)
-        pcolor = self.cfg.particle_color_text
-        if aspoints == True:    
-            self.ax.scatter(plist[:,1],plist[:,2],plist[:,3])
-        else:
-            for ii in plist:
-                if (p_count >= p_start):
-                    # Convert to Cartesian coordinates
-                    x = ii.rx + ii.radius * np.sin(phi) * np.cos(theta)
-                    y = ii.ry + ii.radius * np.sin(phi) * np.sin(theta)
-                    z = ii.rz + ii.radius * np.cos(phi)
-                    if ii.ptype == 1:
-                        self.ax.plot_surface(x, y, z, color='blue',alpha=0.8)
-                    else:
-                        self.ax.plot_surface(x, y, z, color=pcolor,alpha=0.8)
-                    #print(f"Particle {p_count} Loc: <{ii.rx:2f},{ii.ry:2f},{ii.rz:2f})>")
-                    
-                p_count +=1
-                if(p_count > p_end):
-                    break
-                    
-
     def on_scroll(self, event):
         #print(event.button, event.step)
         
@@ -210,3 +203,69 @@ class PlotParticles():
         self.ax.set_ylim(new_y_limits)
         self.ax.set_zlim(new_y_limits)
         plt.pause(0.01)
+
+    #******************************************************************
+    # Toggle viewing cell faces
+    #
+    def toggle_cell_face(self):
+        if self.flg_plot_cell_faces == True:
+            self.flg_plot_cell_faces = False
+        else:
+            self.flg_plot_cell_faces = True
+        if self.flg_plot_cells == True:
+            self.update_plot()
+        else:
+            print("Plotting cells is off.")
+
+    #******************************************************************
+    # Toggle viewing cells as lines
+    #
+    def toggle_cells(self):
+        if(self.flg_plot_cells == True):
+            self.flg_plot_cells = False
+        else:
+            self.flg_plot_cells = True
+        self.update_plot()
+
+    #******************************************************************
+    # Set the view number
+    #
+    def set_view_num(self,viewnum):
+        self.cur_view_num = viewnum
+
+
+    def set_cell_toggle_flag(self, flag):
+        self.toggle_flag = flag
+
+    #******************************************************************
+    # Close the plot if open
+    #
+    def close_plot(self):
+        plt.close()
+
+   
+    def update_plot(self): 
+        plt.cla()
+        self.do_plot()
+        plt.show(block=False)
+        plt.pause(0.01)
+        
+        
+    def side_value_changed(self,side_txt):
+        if len(side_txt) < 2:
+            return None
+        self.start_cell = int(side_txt[0])
+        self.end_cell = int(side_txt[1])
+        
+    def plot_view_changed(self,view):
+        self.fig.canvas.draw()
+
+    
+        
+
+
+    def get_side_length_txt(self):
+        side_txt = f"{self.tst_side_length}:{self.tst_side_length}"
+        
+   
+  

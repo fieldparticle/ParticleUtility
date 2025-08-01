@@ -3,7 +3,7 @@ import importlib
 from contextlib import redirect_stdout
 from io import StringIO
 from sys import stderr, stdout
-from PyQt6.QtWidgets import QFileDialog, QGroupBox,QMessageBox
+from PyQt6.QtWidgets import QFileDialog, QGroupBox,QMessageBox,QLabel
 from PyQt6.QtWidgets import QGridLayout, QTabWidget, QLineEdit,QListWidget
 from PyQt6.QtWidgets import QPushButton, QGroupBox,QTextEdit
 from PyQt6 import QtCore
@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt,QThread,QTimer, pyqtSignal,pyqtSlot,QObject,QRunnabl
 from ConfigUtility import *
 import tkinter as tk
 from tkinter import * 
-from tkinter import messagebox as mb
+from tkinter import messagebox 
 import glob
 import traceback
 import time
@@ -76,7 +76,12 @@ class TabGenData(QTabWidget):
     gen_class = None
     thread = None
     current_test_file = 0
+    particle_data = None
     
+    def no_selection(self):
+        msgBox = QMessageBox()
+        msgBox.setText("You have not selected a data file in the list box.")
+        msgBox.exec()
         
     ##############################################################################
     # Configuration file stuff
@@ -108,9 +113,17 @@ class TabGenData(QTabWidget):
             except BaseException as e:
                 self.log.log(self,f"Unable to import data generation file: {self.itemcfg.generate_class} error:{e}")
 
+            self.plot_obj.create(self.itemcfg,self)
+            # update the list
+            self.update_list_widget()
             # Enable to generate data
             self.GenDataButton.setEnabled(True)
-    
+
+    #******************************************************************
+    # reload the configuration file
+    #
+    def refresh(self):
+        self.load_item_cfg(self.CfgFile)
     #******************************************************************
     # Browse to an existing cfg file
     #
@@ -165,7 +178,7 @@ class TabGenData(QTabWidget):
     #
     def update_list_widget(self):
         self.ListObj.clear()
-        files_names = self.itemcfg.config.data_dir + "/*.bin"
+        files_names = self.itemcfg.data_dir + "/*.bin"
         files = glob.glob(files_names)
         for ii in files:
                 self.ListObj.addItem(ii)
@@ -193,7 +206,8 @@ class TabGenData(QTabWidget):
     def thread_complete(self):
         self.current_test_file+=1
         if (self.current_test_file >= len(self.gen_class.select_list)) :
-            print(f"COMPLETE!")
+            print(f"Data Set Complete")
+            self.update_list_widget()
             return
           # Pass the function to execute
         print(f"Next Thread index:{self.current_test_file}")
@@ -249,11 +263,6 @@ class TabGenData(QTabWidget):
     # Read the data from a file and return os as 
     #
     def read_particle_data(self,file_name):
-        if(self.ListObj.currentRow() < 0):
-            mb.messagebox('No data file has been selected')
-            
-
-            
         struct_fmt = 'dddddddddddddd'
         struct_len = struct.calcsize(struct_fmt)
         #print(struct_len)
@@ -284,16 +293,33 @@ class TabGenData(QTabWidget):
         
         selected_item = self.ListObj.selectedItems()
         if selected_item ==self.selected_item:
-            return
+             self.plot_obj.plot(self.particle_data)
         else:
             self.selected_item = selected_item
-            #self.ltxObj.close_plot()
-        #if self.selected_item:
-           
-            #self.ltxObj.plot(self.selected_item[0].text())
-        #else:
-         #   print("No Database item is selected.")
-       
+            self.plot_obj.close_plot()
+        if self.selected_item:
+            try:
+                self.particle_data = self.read_particle_data(self.selected_item[0].text())
+            except BaseException as e:
+                self.log.log(self,f"Could not read particle data:{e}")
+                return
+            try:
+                self.plot_obj.plot(self.itemcfg,self.particle_data,self.selected_item[0].text())
+            except BaseException as e1:
+                self.log.log(self,f"Ploting error:{e1}")
+        else:
+            self.no_selection()
+
+    #******************************************************************
+    # Have plot obj toggle cells
+    #
+    def toggle_cells(self):
+        self.plot_obj.toggle_cells()
+    #******************************************************************
+    # Have plot obj toggle cell faces
+    #    
+    def toggle_cell_faces(self):
+        self.plot_obj.toggle_cell_face()
     ##############################################################################
     # Setup stuff 
     # 
@@ -322,7 +348,7 @@ class TabGenData(QTabWidget):
         self.bobj = ParticleBase
         self.cfg = self.bobj.cfg.config
         self.log = self.bobj.log
-        self.log.log(self,"TabFormLatex finished init.")
+        self.log.log(self,"TabFormGenData finished init.")
         try:
             self.setStyleSheet("background-color:  #eeeeee")
             self.tab_layout = QGridLayout()
@@ -333,7 +359,7 @@ class TabGenData(QTabWidget):
             ## -------------------------------------------------------------
             ## Set parent directory
             LatexcfgFile = QGroupBox("Generate/Test Particle Data")
-            self.setSize(LatexcfgFile,450,600)
+            self.setSize(LatexcfgFile,600,600)
             self.tab_layout.addWidget(LatexcfgFile,0,0,2,2,alignment= Qt.AlignmentFlag.AlignLeft)
             
             dirgrid = QGridLayout()
@@ -358,36 +384,59 @@ class TabGenData(QTabWidget):
             self.SaveButton.setEnabled(False)
             dirgrid.addWidget(self.SaveButton,2,0)
 
+            self.RefreshButton = QPushButton("Reload")
+            self.setSize(self.RefreshButton,30,100)
+            self.RefreshButton.setStyleSheet("background-color:  #dddddd")
+            self.RefreshButton.clicked.connect(self.refresh)
+            dirgrid.addWidget(self.RefreshButton,2,1)
+
             self.newButton = QPushButton("Plot")
             self.setSize(self.newButton,30,100)
             self.newButton.setStyleSheet("background-color:  #dddddd")
             self.newButton.clicked.connect(self.plot_particles)
-            dirgrid.addWidget(self.newButton,2,1)
+            dirgrid.addWidget(self.newButton,2,2)
 
             self.GenDataButton = QPushButton("GenData")
             self.setSize(self.GenDataButton,30,100)
             self.GenDataButton.setStyleSheet("background-color:  #dddddd")
             self.GenDataButton.clicked.connect(self.gen_data)
             self.GenDataButton.setEnabled(False)
-            dirgrid.addWidget(self.GenDataButton,2,2)
+            dirgrid.addWidget(self.GenDataButton,2,3)
 
             self.StopButton = QPushButton("Stop Gen")
             self.setSize(self.StopButton,30,100)
             self.StopButton.setStyleSheet("background-color:  #dddddd")
             self.StopButton.clicked.connect(self.gen_data)
             self.StopButton.setEnabled(False)
-            dirgrid.addWidget(self.StopButton,2,3)
+            dirgrid.addWidget(self.StopButton,2,4)
+
+            self.ToggleCellsBtn = QPushButton("Toggle Cells")
+            self.setSize(self.ToggleCellsBtn,30,100)
+            self.ToggleCellsBtn.setStyleSheet("background-color:  #dddddd")
+            self.ToggleCellsBtn.clicked.connect(self.toggle_cells)
+            dirgrid.addWidget(self.ToggleCellsBtn,3,0)
+
+            self.ToggleCellFacesBtn = QPushButton("Toggle Cell Faces")
+            self.setSize(self.ToggleCellFacesBtn,30,100)
+            self.ToggleCellFacesBtn.setStyleSheet("background-color:  #dddddd")
+            self.ToggleCellFacesBtn.clicked.connect(self.toggle_cell_faces)
+            dirgrid.addWidget(self.ToggleCellFacesBtn,3,1)
+
+            list_label = QLabel("Data Set")
+            dirgrid.addWidget(list_label,4,0,1,2)
 
             self.ListObj =  QListWidget()
-            #self.ListObj.setFont(self.font)
             self.ListObj.setStyleSheet("background-color:  #FFFFFF")
             self.setSize(self.ListObj,350,450)
-            self.vcnt = 0            
-            #self.ListObj.itemSelectionChanged.connect(lambda: self.valueChangeArray(self.ListObj))
-            dirgrid.addWidget(self.ListObj,3,0,1,2)
-            self.log.log(self,"TabFormLatex finished Create.")
-            
+            dirgrid.addWidget(self.ListObj,5,0,1,2)
 
+            view_label = QLabel("Views")
+            dirgrid.addWidget(view_label,6,0,1,2)
+
+            self.ViewList =  QListWidget()
+            self.ViewList.setStyleSheet("background-color:  #FFFFFF")
+            self.setSize(self.ViewList,120,450)
+            dirgrid.addWidget(self.ViewList,7,0,1,2)
             
             ## -------------------------------------------------------------
             ## Comunications Interface
@@ -398,8 +447,13 @@ class TabGenData(QTabWidget):
         except BaseException as e:
             self.log.log(self,f"Error in Create:{e}")
             return 
+        
         self.bobj.connect_to_output(self.terminal)
+        self.plot_obj = PlotParticles()
 
+        for ii in self.plot_obj.views:
+            self.ViewList.addItem(str(ii))
+        self.log.log(self,"TabFormLatex finished Create.")        
         self.load_item_cfg("C:/_DJ/gPCDUtil/ParticleUtility/cfg_gendata/GenPQBSequential.cfg")
    
     def valueChange(self,listObj):  
@@ -407,5 +461,5 @@ class TabGenData(QTabWidget):
         if selected_items:
             pass
             #print("List object Value Changed",selected_items[0].text())
-            #self.ltxObj.setTypeText(selected_items[0].text())         
+           
     
