@@ -183,10 +183,12 @@ class GenPQBData(GenDataBase):
         self.index = index
         if(self.calculate_test_properties() != 0):
             return
-        self.create_bin_file()
-        self.collsion_count_check = 0
-        ret = self.do_cells(progress_callback)
-        self.close_bin_file()
+        if self.itemcfg.test_files_only == False:
+            self.create_bin_file()  
+            self.collsion_count_check = 0
+            ret = self.do_cells(progress_callback)
+            self.close_bin_file()
+        
         self.write_test_file()
         col_ary_size = self.cell_occupancy_list_size
         if self.itemcfg.particle_enumeration == 'random':
@@ -196,7 +198,7 @@ class GenPQBData(GenDataBase):
         print(f"max_cell_location = <{self.max_cell_location[0]},{self.max_cell_location[0]},{self.max_cell_location[0]}>")
         cell_index = pu.ArrayToIndex(self.max_cell_location)
         print(f"max_cell_index = <{cell_index}> total particles ")
-        print(f"Total Particles: {self.particle_count} Colliding Particles:{self.collision_count}. Collsion pairs:{self.collision_count/2}")
+        print(f"Total Particles: {self.particle_count} Colliding Particles:{self.num_collisions_per_cell}. Collsion pairs:{self.num_collisions_per_cell/2}")
         print("=========================================================\n")
         return ret    
     
@@ -227,10 +229,11 @@ class GenPQBData(GenDataBase):
         
         ########################################################
         for zz in range(z_range):
+            ppc = float(self.particle_count/self.number_particles)*100.0
             if progress_callback!= None:
-             ppc = float(self.particle_count/self.number_particles)*100.0
-            if  progress_callback != None:
                 progress_callback.emit(ppc)
+            else:
+                print(f"{ppc:.2f}")
             for yy in range(y_range):
                 for xx in range(z_range):
                     self.collsions_in_cell_count = 0

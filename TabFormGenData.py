@@ -204,20 +204,19 @@ class TabGenData(QTabWidget):
         except BaseException as e:
             print(f"Start Thread Failed:{e}")
    
-    #******************************************************************
-    # Thread is complete start a new thread for the next file if there is any
+    # Thread that does one file set
     #
-    def thread_complete(self):
-        self.current_test_file+=1
-        if (self.current_test_file >= len(self.gen_class.select_list)) :
-            print(f"Data Set Complete")
-            self.update_list_widget()
-            return
-          # Pass the function to execute
-        print(f"Next Thread index:{self.current_test_file}")
-        self.start_thread()
+    def do_one_file(self,progress_callback):
+        
+        index = self.current_test_file
+        try:
+            self.gen_class.gen_data_base(index,progress_callback)
+        except BaseException as e3:
+            print("Thread Error")
+            raise BaseException(f"Error writing test file err:{e3}")
+            
+        return ""
 
-    
     #******************************************************************
     # Thread that does one file set
     #
@@ -235,18 +234,18 @@ class TabGenData(QTabWidget):
             return
         self.update_list_widget()
 
-    # Thread that does one file set
+    #******************************************************************
+    # Thread is complete start a new thread for the next file if there is any
     #
-    def do_one_file(self,progress_callback):
-        
-        index = self.current_test_file
-        try:
-            self.gen_class.gen_data_base(self,index,progress_callback)
-        except BaseException as e3:
-            print("Thread Error")
-            raise BaseException(f"Error writing test file err:{e3}")
-            
-        return ""
+    def thread_complete(self):
+        self.current_test_file+=1
+        if (self.current_test_file >= len(self.gen_class.select_list)) :
+            print(f"Data Set Complete")
+            self.update_list_widget()
+            return
+          # Pass the function to execute
+        print(f"Next Thread index:{self.current_test_file}")
+        self.start_thread()
 
     #******************************************************************
     # Update the terminal window
@@ -259,20 +258,21 @@ class TabGenData(QTabWidget):
     # Clear the files in the data directory
     #
     def clear_files(self):
-        clr_path = self.itemcfg.data_dir + "/*.csv"
-        files = glob.glob(clr_path)
-        for f in files:
-            os.remove(f)
+        if self.itemcfg.test_files_only == False:
+            clr_path = self.itemcfg.data_dir + "/*.csv"
+            files = glob.glob(clr_path)
+            for f in files:
+                os.remove(f)
 
-        clr_path = self.itemcfg.data_dir + "/*.bin"
-        files = glob.glob(clr_path)
-        for f in files:
-            os.remove(f)
-        
-        clr_path = self.itemcfg.data_dir + "/*.tst"
-        files = glob.glob(clr_path)
-        for f in files:
-            os.remove(f)
+            clr_path = self.itemcfg.data_dir + "/*.bin"
+            files = glob.glob(clr_path)
+            for f in files:
+                os.remove(f)
+            
+            clr_path = self.itemcfg.data_dir + "/*.tst"
+            files = glob.glob(clr_path)
+            for f in files:
+                os.remove(f)
     #******************************************************************
     # Read the data from a file and return os as 
     #

@@ -26,7 +26,7 @@ bc = ParticleBase("FrontEnd")
 bc.Create("ParticleUtil.cfg",'ParicleUtil.log')
 
 if __name__ == '__main__':
-    #f = matplotlib.matplotlib_fname()
+    #f = matplotlib.matplotclslib_fname()
     #print(f)
     app = QApplication(sys.argv)
     screens = app.screens()

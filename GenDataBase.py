@@ -56,6 +56,7 @@ class GenDataBase:
     bin_file = None
     particle_separation = 0.0
     flg_stop = False
+    collsion_count_check = 0
     
     views = [('XY',   (90, -90, 0)),
         ('XZ',    (0, -90, 0)),
@@ -164,10 +165,10 @@ class GenDataBase:
         f.write(fstr)
         fstr = f"act_collisions_per_cell = {self.collsion_count_check};\n"
         f.write(fstr)
-        #fstr = f"particle_data_bin_file = \"{self.test_bin_name.replace('/','\\')}\";\n"
-        #f.write(fstr)
-       # fstr = f"report_file = \"{ self.report_file.replace('/','\\')}\";\n"
-       # f.write(fstr)
+        fstr = f"particle_data_bin_file = \"{self.test_bin_name}\";\n"
+        f.write(fstr)
+        fstr = f"report_file = \"{ self.report_file}\";\n"
+        f.write(fstr)
         fstr = f"collsion_density = {float(self.select_list[self.index]['cdens'])};\n"
         f.write(fstr)
         fstr = f"pdensity = 0;\n"
