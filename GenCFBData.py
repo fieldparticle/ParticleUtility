@@ -88,7 +88,7 @@ class GenPQBData(GenDataBase):
                                     self.write_bin_file(self.w_list)
                                     self.w_list.clear()
                                     return 0
-                                if len(self.w_list) >= int(self.cfg.write_block_len_text):
+                                if len(self.w_list) >= self.cfg.write_block_len:
                                     self.write_bin_file(self.w_list)
                                     self.w_list.clear()
         self.write_bin_file(self.w_list)

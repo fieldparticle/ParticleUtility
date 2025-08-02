@@ -18,6 +18,7 @@ import time
 from PlotParticles import *
 import struct
 import ctypes
+from GenPQBData import *
 
 class pdata(ctypes.Structure):
     _fields_ = [("pnum", ctypes.c_double),
@@ -112,6 +113,7 @@ class TabGenData(QTabWidget):
                 self.gen_class = self.load_class(self.itemcfg.generate_class)()    
             except BaseException as e:
                 self.log.log(self,f"Unable to import data generation file: {self.itemcfg.generate_class} error:{e}")
+                return 
 
             self.plot_obj.create(self.itemcfg,self)
             # update the list
@@ -141,8 +143,9 @@ class TabGenData(QTabWidget):
     #           
     def load_class(self,class_name):
         module_name, class_name = class_name.rsplit('.', 1)
-        module = importlib.import_module(module_name)
-        return getattr(module, class_name)
+        #module = importlib.import_module(module_name)
+        #return getattr(module, class_name)
+        return GenPQBData
 
    
     ##############################################################################
@@ -223,32 +226,22 @@ class TabGenData(QTabWidget):
     def do_all_files_dbg(self):
         index = 0
         try:
-            for ii in self.gen_class.select_list:
-                print(f"{index}:{ii}")
-                self.gen_class.calulate_test_properties(index,ii)
-                self.gen_class.write_test_file(index,ii)
-                self.gen_class.create_bin_file()
-                self.gen_class.do_cells(None)
-                self.gen_class.close_bin_file()
-                index+=1
-        except BaseException as e3:
-            print("Thread Error")
-            raise BaseException(f"Error writing test file err:{e3}")
+            for ii in range(len(self.gen_class.select_list)):
+                print(f"{ii}")
+                self.gen_class.gen_data_base(ii)
+
+        except BaseException as e:
+            print(f"do_all_files_dbg err:{e}")
+            return
         self.update_list_widget()
+
     # Thread that does one file set
     #
     def do_one_file(self,progress_callback):
         
+        index = self.current_test_file
         try:
-            # Calulate the the test propeties
-            index = self.current_test_file
-            ii = self.gen_class.select_list[index]
-            print(f"{index}:{ii}")
-            self.gen_class.calulate_test_properties(index,ii)
-            self.gen_class.write_test_file(index,ii)
-            self.gen_class.create_bin_file()
-            self.gen_class.do_cells(progress_callback)
-            self.gen_class.close_bin_file()
+            self.gen_class.gen_data_base(self,index,progress_callback)
         except BaseException as e3:
             print("Thread Error")
             raise BaseException(f"Error writing test file err:{e3}")

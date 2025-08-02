@@ -119,7 +119,7 @@ class GenDataBase:
         
         for ii in self.select_list:
             self.calulate_cell_properties(index,ii)
-            self.write_test_file(index,ii)
+            self.write_test_file(index)
             self.open_bin_file()
             self.do_cells()
             self.close_bin_file()

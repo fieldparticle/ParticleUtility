@@ -227,7 +227,7 @@ class TabGenData(QTabWidget):
             index = self.current_test_file
             ii = self.gen_class.select_list[index]
             self.gen_class.calulate_test_properties(index,ii)
-            self.gen_class.write_test_file(index,ii)
+            self.gen_class.write_test_file(index)
             self.gen_class.create_bin_file()
             self.gen_class.do_cells(progress_callback)
             self.gen_class.close_bin_file()

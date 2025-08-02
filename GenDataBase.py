@@ -55,6 +55,7 @@ class GenDataBase:
     sepdist = 0.05
     bin_file = None
     particle_separation = 0.0
+    flg_stop = False
     
     views = [('XY',   (90, -90, 0)),
         ('XZ',    (0, -90, 0)),
@@ -65,6 +66,7 @@ class GenDataBase:
     
     def __init__(self):
        pass
+
 
     def create(self,parent,itemcfg):
         self.parent = parent
@@ -77,6 +79,14 @@ class GenDataBase:
     def place_particles(self,xx,yy,zz,row,col,layer,w_list):
         pass
 
+    def calc_side_length(self,num_parts,num_parts_per_cels):
+        side_len = 0
+        while True:
+            side_len += 1
+            if (side_len * side_len * side_len * num_parts_per_cels > num_parts):
+                break
+        ## Add on since particle locations are zero based
+        return side_len+1
     # Impliment in subclass
     def do_cells(self):
         pass
@@ -105,32 +115,15 @@ class GenDataBase:
         self.bin_file.close()
         if(self.bin_file.closed != True):
             self.bobj.log.log("File:{self.test_bin_name} not closed")
-        
-    def write_test_file(self):
-        if not os.path.exists(os.path.isdir(self.itemcfg.data_dir)):
-            os.makedirs(os.path.isdir(self.itemcfg.data_dir))
 
-    def gen_data_base(self):
-        if not os.path.exists(self.itemcfg.data_dir):
-            os.makedirs(self.itemcfg.data_dir)
-        # Scan each line of the selections list, calulate properties, and gen data
-        self.open_selections_file()
-        index = 0
-        
-        for ii in self.select_list:
-            self.calulate_cell_properties(index,ii)
-            self.write_test_file(index,ii)
-            self.open_bin_file()
-            self.do_cells()
-            self.close_bin_file()
-            self.bobj.log.log(self,f"Wrote {self.count} particle to {self.test_bin_name}")
-            index+=1
-        self.select_list.clear()
-
-        # Define the event handling function
     def calc_test_parms(self):
         pass
 
+    def add_null_particle(self,w_list):
+        particle_struct = pdata()
+        particle_struct.pnum = 0
+        w_list.append(particle_struct)
+    
     # load all lines from the particle selections file into selections list
     def open_selections_file(self):
         with open(self.itemcfg.selections_file,"r",newline='') as csvfl:
@@ -142,95 +135,56 @@ class GenDataBase:
     def clear_selections(self):
         self.select_list.clear()
        
-    def calulate_test_properties(self,index,sel_dict):
-        try :
-            self.collision_density      = float(sel_dict['cdens'])
-            self.number_particles       =  int(sel_dict['tot'])
-            self.radius                 = float(sel_dict['radius'])
-            self.sepdist                =  self.itemcfg.particle_separation
-        except BaseException as e:
-            raise ValueError(f"Key error in record at calulate_cell_properties:{e}")
-        
-        
-        self.center_line_length          = 2*self.radius  + self.radius*self.sepdist
-        self.particles_in_row       = int(math.floor(1.00 /self.center_line_length))
-        self.particles_in_col       = int(math.floor(1.00 /self.center_line_length))
-        self.particles_in_layers    = int(math.floor(1.00 /self.center_line_length))
-        self.particles_in_cell      = self.particles_in_row*self.particles_in_col*self.particles_in_layers
-        #self.particles_in_space	    = int(self.particles_in_row*self.particles_in_col*self.particles_in_layers)
-        # Somtimes we do very small number of particles to check the pattern
-        self.cell_array_size      = self.particles_in_cell+10
-        self.num_collisions_per_cell = math.ceil(self.particles_in_cell * self.collision_density/2.0)
-        # Calulate side length based on particles per cell
-        side_len = 0
-        
-        while side_len < 1000:
-            side_len += 1
-            if (side_len * side_len * side_len * self.particles_in_cell >= self.number_particles):
-                break
-        print(f"Break at {side_len}")
-        
-        self.side_length = side_len
-        self.cell_x_len = self.side_length+1
-        self.cell_y_len = self.side_length+1
-        self.cell_z_len = self.side_length+1
-        
-        self.tot_num_cells = self.number_particles / self.particles_in_cell
-        self.tot_num_collsions = math.ceil(int(self.tot_num_cells *self.num_collisions_per_cell*2.0 ))
-        self.set_file_name = "{:03d}CollisionDataSet{:d}X{:d}X{:d}".format(index,self.number_particles,self.tot_num_collsions,side_len)
-        self.test_file_name = self.itemcfg.data_dir + '/' + self.set_file_name + '.tst'
-        self.test_bin_name = self.itemcfg.data_dir + '/' + self.set_file_name + '.bin'
-        self.report_file = self.itemcfg.data_dir + '/' + self.set_file_name
-        return 
-        # This crashes 
-        self.log.log(self,f"Collsion Density: { self.collision_density},Number particles:{self.number_particles},Radius: {self.radius}, Separation Dist: {self.sepdist }, Center line length: {self.center_line_length:.2f}",LogOnly=True)
-        self.log.log(self,f"Particles in row: {self.particles_in_row}, Particles in Column: {self.particles_in_col}, Particles per cell: {self.particles_in_cell}",LogOnly=True)
-        self.log.log(self,f"Particles in space: {self.particles_in_space}, Cell array size: {self.cell_array_size }",LogOnly=True)
-
-    def write_test_file(self,index,sel_dict):
+   
+    def write_test_file(self):
 
         try:
             f = open(self.test_file_name,'w')
         except BaseException as e:
             raise BaseException(f"Can't open testfile {self.test_file_name} err{e}")
-        fstr = f"index = {index}\n"     
+        fstr = f"index = {self.index};\n"     
         f.write(fstr)
-        fstr = f"CellAryW = {self.cell_x_len+1};\n"     
+        # size lengths must be plus 1 since the cell locations start as <0,0,0>
+        # THIS is the only place you so this - The vulkan code nees to check this
+        fstr = f"CellAryW = {self.cell_x_len};\n"     
         f.write(fstr)
-        fstr = f"CellAryH = {self.cell_y_len+1};\n"     
+        fstr = f"CellAryH = {self.cell_y_len};\n"     
         f.write(fstr)
-        fstr = f"CellAryL = {self.cell_z_len+1};\n"     
+        fstr = f"CellAryL = {self.cell_z_len};\n"     
         f.write(fstr)
-      
-        fstr = f"radius = {float(self.radius)};\n"
+        fstr = f"radius = {self.radius};\n"
         f.write(fstr)
-        fstr = f"PartPerCell = {self.particles_in_cell};\n"
+        fstr = f"particles_per_cell = {self.particles_in_cell};\n"
         f.write(fstr)
-        fstr = f"pcount = {self.number_particles};\n"
+        fstr = f"num_particles = {self.number_particles};\n"
         f.write(fstr)
-        fstr = f"colcount = {self.tot_num_collsions};\n"
+        fstr = f"num_particle_colliding = {self.tot_num_collsions};\n"
         f.write(fstr)
-        fstr = f"dataFile = \"{self.test_bin_name};\"\n"
+        fstr = f"exp_collisions_per_cell = {self.num_collisions_per_cell};\n"
         f.write(fstr)
-        fstr = f"aprFile = \"{ self.report_file};\"\n"
+        fstr = f"act_collisions_per_cell = {self.collsion_count_check};\n"
         f.write(fstr)
-        fstr = f"density = {sel_dict['cdens']};\n"
+        #fstr = f"particle_data_bin_file = \"{self.test_bin_name.replace('/','\\')}\";\n"
+        #f.write(fstr)
+       # fstr = f"report_file = \"{ self.report_file.replace('/','\\')}\";\n"
+       # f.write(fstr)
+        fstr = f"collsion_density = {float(self.select_list[self.index]['cdens'])};\n"
         f.write(fstr)
         fstr = f"pdensity = 0;\n"
         f.write(fstr)
-        fstr = f"dispatchx = {sel_dict['wx']};\n"
+        fstr = f"dispatchx = {self.select_list[self.index]['dx']};\n"
         f.write(fstr)
-        fstr = f"dispatchx = {sel_dict['wy']};\n"
+        fstr = f"dispatchy = {self.select_list[self.index]['dy']};\n"
         f.write(fstr)
-        fstr = f"dispatchx = {sel_dict['wz']};\n"
+        fstr = f"dispatchz = {self.select_list[self.index]['dz']};\n"
         f.write(fstr)
-        fstr = f"dispatchx = {sel_dict['dx']};\n"
+        fstr = f"workGroupsx = {self.select_list[self.index]['wx']};\n"
         f.write(fstr)
-        fstr = f"dispatchx = {sel_dict['dx']};\n"
+        fstr = f"workGroupsy = {self.select_list[self.index]['wy']};\n"
         f.write(fstr)
-        fstr = f"dispatchx = {sel_dict['dz']};\n"
+        fstr = f"workGroupsz = {self.select_list[self.index]['wz']};\n"
         f.write(fstr)
-        fstr = f"ColArySize = {self.cell_array_size};\n"
+        fstr = f"cell_occupancy_list_size = {self.cell_occupancy_list_size};\n"
         f.write(fstr)
         f.flush()
         f.close()
