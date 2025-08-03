@@ -1,7 +1,7 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QWidget,  QFormLayout, QGridLayout, QTabWidget, QLineEdit, QDateEdit, QPushButton
 from PyQt6.QtCore import Qt
-from TabFormLatex import *
+from TabFormReport import *
 from TabFormGenData import *
 ## Add all tabs
 class UtilityTabs(QTabWidget):

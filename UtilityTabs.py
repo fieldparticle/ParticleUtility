@@ -1,7 +1,7 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QWidget,  QFormLayout, QGridLayout, QTabWidget, QLineEdit, QDateEdit, QPushButton
 from PyQt6.QtCore import Qt
-from TabFormLatex import *
+from TabFormReport import *
 from TabFormGenData import *
 ## Add all tabs
 class UtilityTabs(QTabWidget):
@@ -14,9 +14,9 @@ class UtilityTabs(QTabWidget):
         self.bobj = FPIBGBase
         ## Create the tabs
         self.tabFormGenData = TabGenData()        
-        self.tabFormLatex = TabFormLatex()
-        self.addTab(self.tabFormGenData, 'Solution Suite')
-        self.addTab(self.tabFormLatex, 'Latex Utility')
+        self.tabFormLatex = TabFormReport()
+        self.addTab(self.tabFormLatex, 'Reports')
+        self.addTab(self.tabFormGenData, 'Generate Data')
+        self.tabFormLatex.Create(self.bobj)
         self.tabFormGenData.Create(self.bobj)
-        #self.tabFormLatex.Create(self.bobj,)
       

@@ -9,51 +9,8 @@ from PyQt6.QtWidgets import QPushButton, QGroupBox,QTextEdit
 from PyQt6 import QtCore
 from _thread import *
 from ConfigUtility import *
-#from LatexClass import *
-#from CfgLabel import *
-#from FPIBGException import *
-#from LatexSingleImage import *
-#from LatexMultiImage import *
-#from LatexPlotBase import *
-#from LatexPlotParticle import *
-#from LatexPlot import *
-#from LatexSingleTable import *
-
-
-def p(x):
-    print (x)
-class EmbeddedTerminal(QTextEdit):
-    def __init__(self, parent):
-        super(EmbeddedTerminal, self).__init__(parent)
-
-    def run_func(self, func, *args, **kwargs):
-        pass
-        #self.thread = QThread()
-        #self.worker = TerminalWorker(func, args, kwargs)
-        #self.worker.moveToThread(self.thread)
-        #self.thread.started.connect(self.worker.run)
-        #self.worker.progress.connect(self.update_terminal)
-        #self.thread.start()
-
-    def update_terminal(self, text):
-        self.setText(text)
-
-
-class TerminalWorker(QObject):
-  
-    def __init__(self, func, args, kwargs):
-        QObject.__init__(self)
-        self.func = func
-        self.args = args
-        self.kwargs = kwargs
-
-    def run(self):
-        with redirect_stdout(StringIO()) as f:
-            self.func(*self.args, **self.kwargs)
-        output = f.getvalue()
-        self.progress.emit(output)
-
-class TabFormLatex(QTabWidget):
+from DataContainer import *
+class TabFormReport(QTabWidget):
     
     texFolder = ""
     CfgFile = ""
@@ -63,6 +20,9 @@ class TabFormLatex(QTabWidget):
     startDir = "J:/MOD/FPIBGUtility/Latex"
     startDir = "J:/FPIBGJournalStaticV2/rpt"
     startDir = "J:/FPIBGJournalStaticV2/cfg"
+    data_container = None
+    latex_container = None
+    interpeter = None
 
     ObjName = ""
     ltxObj = None
@@ -83,7 +43,27 @@ class TabFormLatex(QTabWidget):
         
         #self.ltxObj.clearConfigGrp()
 
-  
+    def load_item_cfg(self,file):
+            self.CfgFile = file
+            self.texFolder = os.path.dirname(self.CfgFile)
+            self.texFileName = os.path.splitext(os.path.basename(self.CfgFile))[0]
+            self.dirEdit.setText(self.CfgFile)
+
+            # Open the item configuration filke
+            try :
+                self.itemcfgFile = ConfigUtility(self.CfgFile)
+                self.itemcfgFile.Create(self.bobj.log,self.CfgFile)
+                self.itemcfg = self.itemcfgFile.config
+                
+            except BaseException as e:
+                self.log.log(self,f"Config File syntax - line number of config file:{e}")
+                self.hasConfig = False
+                return 
+            
+            self.data_container = DataContainer(self,self.itemcfg)
+            self.data_container.get_particle_data_fields()
+            self.VerifyButton.setEnabled(True)
+
     def browseFolder(self):
         """ Opens a dialog window for the user to select a folder in the file system. """
         #folder = QFileDialog.getExistingDirectory(self, "Select Folder")
@@ -92,29 +72,30 @@ class TabFormLatex(QTabWidget):
                                        ("Configuration File (*.cfg)"))
         
         if folder[0]:
-            self.CfgFile = folder[0]
-            self.texFolder = os.path.dirname(self.CfgFile)
-            self.texFileName = os.path.splitext(os.path.basename(self.CfgFile))[0]
-            self.dirEdit.setText(self.CfgFile)
-            try :
-                self.itemcfg = ConfigUtility(self.CfgFile)
-                self.itemcfg.Create(self.bobj.log,self.CfgFile)
-                
-            except BaseException as e:
-                self.log.log(self,f"Unable to open item configurations file:{e}")
-                self.hasConfig = False
-                return 
-           
-           
-            self.SaveButton.setEnabled(True)
-            self.PreviewButton.setEnabled(True)
+           self.load_item_cfg(folder[0])
 
 
-    
+    def msg_box(self,text):
+        msgBox = QMessageBox()
+        msgBox.setText(text)
+        msgBox.exec()
+
     def preview(self):
         pass    
 
-        
+    def verify(self):
+        try :
+            self.data_container.get_data()
+            ret = self.data_container.do_verify()
+            if ret > 0:
+                field_dict = self.data_container.get_feilds_dict()
+                self.msg_box(f"Verify failed: Number of errors:{ret}. See ")
+            else:
+                self.msg_box(f"Verify Passed!")
+        except BaseException as e:
+            print(f"Verify Failed:{e}")
+
+        pass
 
     def Create(self,FPIBGBase):
         
@@ -132,9 +113,9 @@ class TabFormLatex(QTabWidget):
 
             ## -------------------------------------------------------------
             ## Set parent directory
-            LatexcfgFile = QGroupBox("Latex File Configuration")
-            self.setSize(LatexcfgFile,200,300)
-            self.tab_layout.addWidget(LatexcfgFile,0,0,1,2,alignment= Qt.AlignmentFlag.AlignLeft)
+            LatexcfgFile = QGroupBox("Report Configuraiton")
+            self.setSize(LatexcfgFile,600,600)
+            self.tab_layout.addWidget(LatexcfgFile,0,0,2,2,alignment= Qt.AlignmentFlag.AlignLeft)
             
             dirgrid = QGridLayout()
             LatexcfgFile.setLayout(dirgrid)
@@ -160,8 +141,16 @@ class TabFormLatex(QTabWidget):
             self.newButton = QPushButton("New")
             self.setSize(self.newButton,30,100)
             self.newButton.setStyleSheet("background-color:  #dddddd")
-            self.newButton.clicked.connect(self.browseNewItem)
+           # self.newButton.clicked.connect(self.browseNewItem)
             dirgrid.addWidget(self.newButton,2,1)
+
+            self.VerifyButton = QPushButton("Verify")
+            self.setSize(self.VerifyButton,30,100)
+            self.VerifyButton.setStyleSheet("background-color:  #dddddd")
+            self.VerifyButton.clicked.connect(self.verify)
+            self.VerifyButton.setEnabled(False)
+            dirgrid.addWidget(self.VerifyButton,2,3)
+
 
             self.PreviewButton = QPushButton("Preview")
             self.setSize(self.PreviewButton,30,100)
@@ -190,6 +179,10 @@ class TabFormLatex(QTabWidget):
             self.tab_layout.addWidget(self.terminal,4,0,1,3,alignment= Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
         except BaseException as e:
             self.log.log(self,e)
+        try:
+            self.load_item_cfg("C:/_DJ/gPCDUtil/ParticleUtility/cfg_reports/PQBOnly.cfg")
+        except BaseException as e1:
+            print(f"Cannot open cfg file:{e1}")
    
     def valueChangeArray(self,listObj):  
         selected_items = listObj.selectedItems()

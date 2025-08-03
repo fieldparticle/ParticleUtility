@@ -79,9 +79,23 @@ class TabGenData(QTabWidget):
     current_test_file = 0
     particle_data = None
     
+    #******************************************************************
+    # Init
+    #
+    def __init__(self, *args, **kwargs ):
+        super().__init__(*args, **kwargs )
+        self.threadpool = QThreadPool()
+        thread_count = self.threadpool.maxThreadCount()
+        #print(f"Multithreading with maximum {thread_count} threads")
+        
+
     def no_selection(self):
         msgBox = QMessageBox()
         msgBox.setText("You have not selected a data file in the list box.")
+        msgBox.exec()
+    def msg_box(self,text):
+        msgBox = QMessageBox()
+        msgBox.setText(text)
         msgBox.exec()
         
     ##############################################################################
@@ -294,7 +308,59 @@ class TabGenData(QTabWidget):
                 results.append(record)
         p_lst = []
         return results
-    
+    ##############################################################################
+    # Testing
+    # 
+    ##############################################################################
+    def test_index_array(self):
+        selected_item = self.ListObj.selectedItems()
+        self.selected_item = selected_item
+        if self.selected_item:
+           print(selected_item[0].text())
+           self.test_array_to_index(selected_item[0].text())
+        else:
+            self.no_selection()
+
+    def test_array_to_index(self,test_file_name):
+        try :
+            file_name = f"{self.itemcfg.data_dir}/{self.itemcfg.test_indexing_log}"
+            col_file = open(file_name,'w')
+            tst_prefix = os.path.splitext(test_file_name)[0]
+            tst_file = tst_prefix + '.tst'
+            tst_file_obj = ConfigUtility(tst_file)
+            tst_file_obj.Create(self.bobj.log,tst_file)
+            tst_file_cfg = tst_file_obj.config
+            tst_side_length =  tst_file_cfg.CellAryW
+            col_file.write(f"Height:{ tst_side_length},Width{tst_side_length}\n")
+            col_ary_size = tst_file_cfg.cell_occupancy_list_size
+            pu = ParticleUtilities(tst_side_length,col_ary_size)
+        except BaseException as e:
+            print(f"Verify indexing error:{e}")
+            return
+        for zz in range(tst_side_length):
+            for yy in range(tst_side_length):
+                for xx in range(tst_side_length):
+                    ary = [round(xx),round(yy),round(zz)]
+                    index = pu.ArrayToIndex(ary)
+                    col_file.write(f"Index:{index} at <{xx},{yy},{zz}>\n")
+
+        col_file.close()
+    """
+    #******************************************************************
+    # Read the test file and list the index addressing
+    # Needs to be consequtive not ,issing numbers
+    def verify_particle_count(self,file_name):
+        counter = 0
+        with open(file_name, "rb") as f:
+            while True:
+                record = pdata()
+                ret = f.readinto(record)
+                if ret == 0:
+                    break
+                counter += 1
+            
+        print(f"Verify counted :{counter} against {self.number_particles}")
+    """ 
 
     ##############################################################################
     # Plot stuff
@@ -338,15 +404,7 @@ class TabGenData(QTabWidget):
     # Setup stuff 
     # 
     ##############################################################################
-    #******************************************************************
-    # Init
-    #
-    def __init__(self, *args, **kwargs ):
-        super().__init__(*args, **kwargs )
-        self.threadpool = QThreadPool()
-        thread_count = self.threadpool.maxThreadCount()
-        #print(f"Multithreading with maximum {thread_count} threads")
-        
+    
     #******************************************************************
     # Set the size of a widget
     #
@@ -431,10 +489,22 @@ class TabGenData(QTabWidget):
             dirgrid.addWidget(self.ToggleCellsBtn,3,0)
 
             self.ToggleCellFacesBtn = QPushButton("Toggle Cell Faces")
-            self.setSize(self.ToggleCellFacesBtn,30,100)
+            self.setSize(self.ToggleCellFacesBtn,30,110)
             self.ToggleCellFacesBtn.setStyleSheet("background-color:  #dddddd")
             self.ToggleCellFacesBtn.clicked.connect(self.toggle_cell_faces)
             dirgrid.addWidget(self.ToggleCellFacesBtn,3,1)
+
+            self.TestArrayBtn = QPushButton("Test Array Indexing")
+            self.setSize(self.TestArrayBtn,30,120)
+            self.TestArrayBtn.setStyleSheet("background-color:  #dddddd")
+            self.TestArrayBtn.clicked.connect(self.test_index_array)
+            dirgrid.addWidget(self.TestArrayBtn,3,2)
+
+            self.VerfPCountBtn = QPushButton("Test Particle Count")
+            self.setSize(self.VerfPCountBtn,30,120)
+            self.VerfPCountBtn.setStyleSheet("background-color:  #dddddd")
+            #self.VerfPCountBtn.clicked.connect(self.toggle_cell_faces)
+            dirgrid.addWidget(self.VerfPCountBtn,3,3)
 
             list_label = QLabel("Data Set")
             dirgrid.addWidget(list_label,4,0,1,2)
